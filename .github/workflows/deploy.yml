@@ -1,0 +1,60 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-app-express:${{ github.sha }} .
+
+      - name: Save Docker image to a file
+        run: |
+          docker save my-app-express:${{ github.sha }} | gzip > my-app-express.tar.gz
+
+      - name: Upload Docker image as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: my-app-express-image
+          path: my-app-express.tar.gz
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: my-app-express-image
+
+      - name: Copy Docker image to EC2
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > /tmp/ssh_key.pem
+          chmod 600 /tmp/ssh_key.pem
+          scp -i /tmp/ssh_key.pem -o StrictHostKeyChecking=no my-app-express.tar.gz ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_SERVER }}:/tmp/my-app-express.tar.gz
+
+      - name: Deploy to EC2
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        run: |
+          ssh -i /tmp/ssh_key.pem -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_SERVER }} << EOF
+            sudo docker load -i /tmp/my-app-express.tar.gz
+            sudo docker stop my-app-express || true
+            sudo docker rm my-app-express || true
+            sudo docker run -d --name my-app-express -p 80:3000 my-app-express:${{ github.sha }}
+          EOF

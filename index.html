@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nginx Demo</title>
+  </head>
+  <body>
+    <h1>Nginx Demo</h1>
+    <p>Request Count: <span id="count"></span></p>
+    <p>Container Count: <span id="containers"></span></p>
+
+    <script>
+      const countEl = document.getElementById("count");
+      const containersEl = document.getElementById("containers");
+
+      async function updateData() {
+        const resCount = await fetch("/api");
+        const count = await resCount.json();
+        countEl.textContent = count.count;
+
+        const resContainers = await fetch("/containers");
+        const containers = await resContainers.json();
+        containersEl.textContent = containers.containers;
+      }
+
+      setInterval(updateData, 1000);
+    </script>
+  </body>
+</html>
