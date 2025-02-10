@@ -56,5 +56,5 @@ jobs:
             sudo docker load -i /tmp/my-app-express.tar.gz
             sudo docker stop my-app-express || true
             sudo docker rm my-app-express || true
-            sudo docker run -d --name my-app-express -p 80:3000 my-app-express:${{ github.sha }}
+            sudo docker run -d --name my-app-express -p 8080:3000 my-app-express:${{ github.sha }}
           EOF
